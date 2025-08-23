@@ -403,7 +403,7 @@ export const getResult = (gameId: string): {
 
     });
 
-    gameRoom.players.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    gameRoom.players.sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
     gameRoom.players.forEach((player, index) => {
         player.position = index + 1;
     });
