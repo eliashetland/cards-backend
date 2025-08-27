@@ -13,16 +13,17 @@ export interface IPlayer {
 
 export interface IGameRoom {
     id: string;
+    creatorId: string;
     players: IPlayer[];
     maxNumberOfPlayers: number;
     status: "waiting" | "started" | "finished"; // Add more statuses if needed
     round: number;
-    totalRounds: number; 
+    totalRounds: number;
     deck: ICard[];
     discardPile: ICard[]; // Add discard pile to track cards that have been played
     playedCards: ICard[];
     playerTurn: number;
-    startingPlayer: number; 
+    startingPlayer: number;
     lastPlayedCard: ICard | null;
 }
 

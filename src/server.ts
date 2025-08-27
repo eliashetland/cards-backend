@@ -2,8 +2,9 @@ import express from "express";
 import { createServer, get } from "http";
 import { Server } from "socket.io";
 
-import { createGame, getResult, joinGame, lastRoundPick, playCards, startGame, startNewRound, } from "./game/svein";
+import { createGame, deleteGame, getAllGames, getResult, joinGame, lastRoundPick, leaveGame, playCards, startGame, startNewRound, } from "./game/svein";
 import { cardsToString } from "./game/deck";
+import { gameState } from "./game/state";
 const port = 3000;
 const app = express();
 const httpServer = createServer(app);
@@ -20,10 +21,25 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-    console.log("A user connected");
+    console.log(`A user ${socket.id} connected`);
+
+    socket.emit("game_state", { games: getAllGames() });
+    // console.log(JSON.stringify(gameState));
+
 
     socket.on("disconnect", () => {
-        console.log("A user disconnected: " + socket.id);
+        console.log(`A user ${socket.id} disconnected`);
+        try {
+            const { gameId } = leaveGame(socket.id);
+            console.log(`Player with ID ${socket.id} has left their game.`);
+
+            io.to(gameId).emit("host_playerLeft", { playerId: socket.id });
+            socket.leave(gameId);
+            io.emit("game_state", { games: getAllGames() });
+
+        } catch (error: any) {
+            console.error(`Error leaving game: ${error.message}`);
+        }
     });
 
     socket.on("client_joinGame", (data) => {
@@ -34,6 +50,7 @@ io.on("connection", (socket) => {
             socket.join(gameId);
             socket.emit("client_joinedGame", { gameId, playerName, playerId: socket.id });
             io.to(gameId).emit("host_playerJoined", { playerId: socket.id, playerName });
+            io.emit("game_state", { games: getAllGames() });
         } catch (error: any) {
 
             console.error(`Error joining game: ${error.message}`);
@@ -47,12 +64,13 @@ io.on("connection", (socket) => {
     socket.on("host_createGame", (data) => {
         const { gameId, maxPlayers, numberOfRounds } = data;
         try {
-            createGame(gameId, maxPlayers || 4, numberOfRounds || 10);
+            createGame(gameId, maxPlayers || 4, numberOfRounds || 10, socket.id);
 
 
             console.log(`Game created with ID: ${data?.gameId}`);
             socket.join(data.gameId);
             socket.emit("host_gameCreated", { gameId: data.gameId, maxPlayers, numberOfRounds });
+            io.emit("game_state", { games: getAllGames() });
 
         } catch (error: any) {
 
@@ -78,6 +96,7 @@ io.on("connection", (socket) => {
             console.log("Game started successfully", nextPlayer?.name, "is the first player to play.");
 
             socket.to(nextPlayer?.id || "").emit("client_yourTurn");
+            io.emit("game_state", { games: getAllGames() });
 
         } catch (error: any) {
             console.error(`Error starting game: ${error.message}`);
@@ -120,6 +139,8 @@ io.on("connection", (socket) => {
                             score: player.score,
                         }))
                     });
+                    io.emit("game_state", { games: getAllGames() });
+                    deleteGame(gameId);
                     return;
                 }
 
@@ -187,6 +208,10 @@ io.on("connection", (socket) => {
                         position: player.position,
                     }))
                 });
+
+                io.emit("game_state", { games: getAllGames() });
+                deleteGame(gameId);
+
 
 
 

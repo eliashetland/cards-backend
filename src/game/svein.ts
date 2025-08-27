@@ -3,13 +3,14 @@ import { IPlayer } from './state';
 import { cardsToString, cardToString, dealCards, generateDeck, ICard, ranks, shuffleDeck } from './deck';
 import { CreateGameError, GameDoesNotExistError, InvalidGameStateError, InvalidMoveError, JoinGameError, PlayerNotFoundError, StartGameError } from './IError';
 
-export const createGame = (gameId: string, maxPlayers: number, numberOfRounds: number) => {
+export const createGame = (gameId: string, maxPlayers: number, numberOfRounds: number, creatorId: string) => {
     if (gameState[gameId]) {
         throw new CreateGameError(`Game with ID ${gameId} already exists.`);
     }
 
     gameState[gameId] = {
         id: gameId,
+        creatorId: creatorId,
         players: [],
         maxNumberOfPlayers: maxPlayers,
         status: "waiting",
@@ -23,6 +24,24 @@ export const createGame = (gameId: string, maxPlayers: number, numberOfRounds: n
         lastPlayedCard: null,
     };
 };
+
+
+export interface IGameRoomPublic {
+    id: string;
+    players: { id: string; name: string }[];
+    maxNumberOfPlayers: number;
+    status: "waiting" | "started" | "finished"; // Add more statuses if needed
+}
+
+export const getAllGames = (): IGameRoomPublic[] => {
+    const currentState = Object.values(gameState).map(game => ({
+        id: game.id,
+        players: game.players.map(p => ({ id: p.id, name: p.name })),
+        maxNumberOfPlayers: game.maxNumberOfPlayers,
+        status: game.status,
+    }));
+    return currentState;
+}
 
 export const joinGame = (gameId: string, playerName: string, socketId: string) => {
     const gameRoom = gameState[gameId];
@@ -59,6 +78,24 @@ export const joinGame = (gameId: string, playerName: string, socketId: string) =
     });
 }
 
+
+export const leaveGame = (playerId: string) => {
+    let gameRoom = Object.values(gameState).find(room => room.creatorId === playerId);
+    if (gameRoom) {
+        delete gameState[gameRoom.id];
+        console.log(`Game with ID ${gameRoom.id} has been deleted because the creator left.`);
+
+        return { gameId: gameRoom.id };
+    }
+
+    gameRoom = Object.values(gameState).find(room => room.players.some(p => p.id === playerId));
+
+    if (!gameRoom) {
+        throw new GameDoesNotExistError("Game not found.");
+    }
+    gameRoom.players = gameRoom.players.filter(p => p.id !== playerId);
+    return { gameId: gameRoom.id };
+}
 export const startGame = (gameId: string) => {
     const gameRoom = gameState[gameId];
     if (!gameRoom) {
@@ -430,4 +467,13 @@ const getScore = (player: IPlayer): number => {
     return newCards.reduce((acc, card) => {
         return acc + ranks.indexOf(card.rank) + 2;
     }, 0);
+}
+
+
+export const deleteGame = (gameId: string) => {
+    const gameRoom = gameState[gameId];
+    if (!gameRoom) {
+        throw new GameDoesNotExistError(gameId);
+    }
+    delete gameState[gameId];
 }
