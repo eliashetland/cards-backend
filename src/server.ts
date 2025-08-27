@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 
 import { createGame, deleteGame, getAllGames, getResult, joinGame, lastRoundPick, leaveGame, playCards, startGame, startNewRound, } from "./game/svein";
 import { cardsToString } from "./game/deck";
-import { gameState } from "./game/state";
+
 const port = 3000;
 const app = express();
 const httpServer = createServer(app);
@@ -139,8 +139,8 @@ io.on("connection", (socket) => {
                             score: player.score,
                         }))
                     });
-                    io.emit("game_state", { games: getAllGames() });
                     deleteGame(gameId);
+                    io.emit("game_state", { games: getAllGames() });
                     return;
                 }
 
@@ -209,8 +209,8 @@ io.on("connection", (socket) => {
                     }))
                 });
 
-                io.emit("game_state", { games: getAllGames() });
                 deleteGame(gameId);
+                io.emit("game_state", { games: getAllGames() });
 
 
 
